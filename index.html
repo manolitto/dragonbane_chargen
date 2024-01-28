@@ -1,0 +1,549 @@
+<!--suppress SpellCheckingInspection -->
+<html>
+<head>
+    <meta charset="utf-8" />
+    <script src="https://unpkg.com/pdf-lib@1.11.0"></script>
+    <script src="https://unpkg.com/downloadjs@1.4.7"></script>
+    <style>
+        body {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        p {
+            font-family: helvetica;
+            font-size: 24px;
+            text-align: center;
+            margin: 25px;
+        }
+
+        .small {
+            font-family: helvetica;
+            font-size: 18px;
+            text-align: center;
+            margin: 25px;
+        }
+
+        button {
+            background-color: #008CBA;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+<p>Klicke auf den Button um einen zufälligen Dragonbane Spielercharakter zu erschaffen:</p>
+<button onclick="createCharacterSheetPdf()">Mein Dragonbane-Charakter</button>
+<p class="small">(Das fertige PDF wird automatisch heruntergeladen)</p>
+</body>
+
+</html>
+<script>
+    const { PDFDocument } = PDFLib
+
+    const FIELD = {
+        'DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf': {
+            PLAYER: 'Gespielt von',
+            KIN: 'Volk',
+            AGE: 'Alter',
+            PROFESSION: 'Beruf',
+            WEAKNESS1: 'Schwächen 1',
+            WEAKNESS2: 'Schwächen 2',
+            NAME: 'Name',
+            STR: 'STR',
+            CON: 'KON',
+            AGL: 'GEW',
+            INT: 'INT',
+            WIL: 'WIL',
+            CHA: 'CHA',
+            DAMAGE_BONUS_STR: 'Schadensbonus STR',
+            DAMAGE_BONUS_AGL: 'Schadensbonus GEW',
+            HP: 'TP',
+            WP: 'WP',
+            ABILITY: nr => `Talente & Zauber ${nr+1}`,
+            INVENTORY: nr => `Inventar ${nr+1}`,
+            SKILL: {
+                Acrobatics: 'Fertigkeiten 1',
+                Evade: 'Fertigkeiten 2',
+                BeastLore: 'Fertigkeiten 3',
+                Performance: 'Fertigkeiten 4',
+                SpotHidden: 'Fertigkeiten 5',
+                Bartering: 'Fertigkeiten 6',
+                SleightOfHand: 'Fertigkeiten 7',
+                Languages: 'Fertigkeiten 8',
+                Crafting: 'Fertigkeiten 9',
+                Healing: 'Fertigkeiten 10',
+                Sneaking: 'Fertigkeiten 11',
+                HuntingFishing: 'Fertigkeiten 12',
+                MythsLegends: 'Fertigkeiten 13',
+                Riding: 'Fertigkeiten 14',
+                Swimming: 'Fertigkeiten 15',
+                Seamanship: 'Fertigkeiten 16',
+                Bluffing: 'Fertigkeiten 17',
+                Persuasion: 'Fertigkeiten 18',
+                Awareness: 'Fertigkeiten 19',
+                Bushcraft: 'Fertigkeiten 20',
+            },
+        }
+    };
+
+    const BASE_SKILL = {
+        Acrobatics: 'AGL',
+        Awareness: 'INT',
+        Bartering: 'CHA',
+        BeastLore: 'INT',
+        Bluffing: 'CHA',
+        Bushcraft: 'INT',
+        Crafting: 'STR',
+        Evade: 'AGL',
+        Healing: 'INT',
+        HuntingFishing: 'AGL',
+        Languages: 'INT',
+        MythsLegends: 'INT',
+        Performance: 'CHA',
+        Persuasion: 'CHA',
+        Riding: 'AGL',
+        Seamanship: 'INT',
+        SleightOfHand: 'AGL',
+        Sneaking: 'AGL',
+        SpotHidden: 'INT',
+        Swimming: 'AGL',
+    }
+
+    const KIN = {
+        Human: 'Human',
+        Halfling: 'Halfling',
+        Dwarf: 'Dwarf',
+        Elf: 'Elf',
+        Mallard: 'Mallard',
+        Wolfkin: 'Wolfkin'
+    };
+
+    const MOVEMENT = {
+        Human: 10,
+        Halfling: 8,
+        Dwarf: 8,
+        Elf: 10,
+        Mallard: 8,
+        Wolfkin: 12
+    }
+
+    const GENDER = {
+        m: 'm',
+        f: 'f'
+    }
+
+    const PROFESSION = {
+        artisan: 'Artisan',
+        bard: 'Bard',
+        fighter: 'Fighter',
+        hunter: 'Hunter',
+        knight: 'Knight',
+        mage: 'Mage',
+        mariner: 'Mariner',
+        merchant: 'Merchant',
+        scholar: 'Scholar',
+        thief: 'Thief',
+    }
+
+    const AGE = {
+        young: 'young',
+        adult: 'adult',
+        old:   'old',
+    }
+
+    const AGE_TRAINED_SKILL = {
+        young: {prof: 6, free: 2},
+        adult: {prof: 6, free: 4},
+        old:   {prof: 6, free: 4}
+    }
+
+    const AGE_ATTR_ADJUST = {
+        young: {STR:  0, CON: +1, AGL: +1, INT:  0, WIL:  0, CHA: 0},
+        adult: {STR:  0, CON:  0, AGL:  0, INT:  0, WIL:  0, CHA: 0},
+        old:   {STR: -2, CON: -2, AGL: -2, INT: +1, WIL: +1, CHA: 0},
+    }
+
+    const KIN_ABILITY = {
+        Human: 'Adaptive',
+        Halfling: 'Hard To Catch',
+        Dwarf: 'Unforgiving',
+        Elf: 'Inner Peace',
+        Mallard: ['Ill-tempered','Webbed Feet'],
+        Wolfkin: 'Hunting Instincts'
+    };
+
+
+    const I18N = {
+        de: {
+            '+D4': '+W4',
+            '+D6': '+W6',
+            Human: 'Mensch',
+            Halfling: 'Halbling',
+            Dwarf: {m: 'Zwerg', f: 'Zwergin'},
+            Elf: 'Elf',
+            Mallard: 'Ente',
+            Wolfkin: 'Wolfsmensch',
+            male: 'männlich',
+            female: 'weiblich',
+            Artisan: {m: 'Handwerker', f: 'Handwerkerin'},
+            Bard: {m: 'Barde', f: 'Bardin'},
+            Fighter: {m: 'Kämpfer', f: 'Kämpferin'},
+            Hunter: {m: 'Jäger', f: 'Jägerin'},
+            Knight: {m: 'Ritter', f: 'Ritterin'},
+            Mage: {m: 'Magier', f: 'Magierin'},
+            Mariner: {m: 'Seemann', f: 'Seefrau'},
+            Merchant: {m: 'Händler', f: 'Händlerin'},
+            Scholar: {m: 'Gelehrter', f: 'Gelehrte'},
+            Thief: {m: 'Dieb', f: 'Diebin'},
+            young: 'Jung',
+            adult: 'Erwachsen',
+            old:   'Alt',
+            Joruna: {m: 'Jorun', f: 'Joruna'},
+            Tym: {m: 'Tym', f: 'Tymia'},
+            Halvelda: {m: 'Halveld', f: 'Halvelda'},
+            Garmander: {m: 'Garmander', f: 'Garmandera'},
+            Verolun: {m: 'Verolun', f: 'Veroluna'},
+            Lothar: {m: 'Lothar', f: 'Lotharia'},
+            Snappy: {m: 'Schnappi', f: 'Schnappine'},
+            Brine: {m: 'Brino', f: 'Brine'},
+            Cottar: {m: 'Cottar', f: 'Cottar'},
+            Bumble: {m: 'Hummel', f: 'Hummel'},
+            Theoline: {m: 'Theolin', f: 'Theoline'},
+            Tinderrock: {m: 'Zunderfels', f: 'Zunderfelsia'},
+            Halwyld: {m: 'Halwyld', f: 'Halwylda'},
+            Tymolana: {m: 'Tymolan', f: 'Tymolana'},
+            Traut: {m: 'Traut', f: 'Trauta'},
+            Urd: {m: 'Urd', f: 'Urda'},
+            Fermer: {m: 'Fermer', f: 'Fermera'},
+            Arasin: {m: 'Arasin', f: 'Arasina'},
+            Illyriana: {m: 'Illyrian', f: 'Illyriana'},
+            Galvander: {m: 'Galvander', f: 'Galvandera'},
+            Tyrindelia: {m: 'Tyrindel', f: 'Tyrindelia'},
+            Erwilnor: {m: 'Erwilnor', f: 'Erwilnora'},
+            Andremone: {m: 'Andremon', f: 'Andremone'},
+            Qwucksum: {m: 'Qwucksum', f: 'Qwucksuma'},
+            Splats: {m: 'Splats', f: 'Splats'},
+            Moggee: {m: 'Moggee', f: 'Moggee'},
+            Groddy: {m: 'Groddy', f: 'Groddy'},
+            Blisandina: {m: 'Blisandin', f: 'Blisandina'},
+            Hackleswell: {m: 'Hackleswell', f: 'Hackleswella'},
+            Wyld: {m: 'Wyld', f: 'Wylda'},
+            Wolfshadow: {m: 'Wolfschatten', f: 'Wolfschatten'},
+            Lunariem: {m: 'Lunariem', f: 'Lunariem'},
+            Obdurian: {m: 'Obdurian', f: 'Obduriana'},
+            Frostbite: {m: 'Frostbeule', f: 'Frostbeule'},
+            Wuldenhall: {m: 'Wuldenhall', f: 'Wuldenhall'},
+            'Adaptive': 'Anpassungsfähig',
+            'Hard To Catch': 'Schwer zu fassen',
+            'Unforgiving': 'Nachtragend',
+            'Inner Peace': 'Innerer Frieden',
+            'Ill-tempered': 'Übellaunig',
+            'Webbed Feet': 'Schwimmhäute',
+            'Hunting Instincts': 'Jagdinstinkt',
+        },
+        en: {
+            '+D4': '+D4',
+            '+D6': '+D6',
+            Human: 'Human',
+            Halfling: 'Halfling',
+            Dwarf: 'Dwarf',
+            Elf: 'Elf',
+            Mallard: 'Mallard',
+            Wolfkin: 'Wolfkin',
+            male: 'male',
+            female: 'female'
+        }
+    };
+
+    async function createCharacterSheetPdf() {
+
+        const character = createRandomCharacter();
+        console.info(character);
+
+        const context = {
+            lang: 'de',
+            sheetVersion: 'DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf'
+        }
+        const pdfBytes = await createPdf(character, context);
+
+        download(
+            pdfBytes,
+            createFilename(character, context),
+            "application/pdf"
+        );
+    }
+
+    async function createPdf(character, context) {
+        // Fetch the PDF with form fields
+        const formUrl = '/Dragonbane RCC/DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf'
+        const formPdfBytes = await fetch(formUrl).then(res => res.arrayBuffer())
+
+        // // Fetch the Mario image
+        // const marioUrl = 'https://pdf-lib.js.org/assets/small_mario.png'
+        // const marioImageBytes = await fetch(marioUrl).then(res => res.arrayBuffer())
+        //
+        // // Fetch the emblem image
+        // const emblemUrl = 'https://pdf-lib.js.org/assets/mario_emblem.png'
+        // const emblemImageBytes = await fetch(emblemUrl).then(res => res.arrayBuffer())
+
+        // Load a PDF with form fields
+        const pdfDoc = await PDFDocument.load(formPdfBytes)
+
+        // // Embed the Mario and emblem images
+        // const marioImage = await pdfDoc.embedPng(marioImageBytes)
+        // const emblemImage = await pdfDoc.embedPng(emblemImageBytes)
+
+        // Get the form containing all the fields
+        const form = pdfDoc.getForm()
+
+        fillOutForm(
+            form,
+            character,
+            {...context, gender: character.gender}
+        );
+
+        // Get all fields in the PDF by their names
+        // const characterImageField = form.getButton('CHARACTER IMAGE')
+        // Fill the character image field with our Mario image
+        // characterImageField.setImage(marioImage)
+
+        // Serialize the PDFDocument to bytes (a Uint8Array)
+        const pdfBytes = await pdfDoc.save()
+        return pdfBytes;
+    }
+
+    function setTextField(ctx, form, field, val) {
+        if (typeof val === 'string' && val.length > 0) {
+            form.getTextField(field).setText(translate(val, ctx.lang, ctx.gender));
+        } else if (Array.isArray(val) && typeof field === 'function') {
+            for (let i = 0; i < val.length; i++) {
+                const v = val[i];
+                form.getTextField(field(i)).setText(translate(v, ctx.lang, ctx.gender));
+            }
+        } else if (typeof val === 'number' || val === '') {
+            form.getTextField(field).setText(`${val}`);
+        } else {
+            throw Error('Bad value: ' + val);
+        }
+    }
+
+    function fillOutForm(form, char, ctx) {
+        const fs = FIELD[ctx.sheetVersion];
+        setTextField(ctx, form, fs.KIN, char.kin);
+        setTextField(ctx, form, fs.AGE, char.age);
+        setTextField(ctx, form, fs.PROFESSION, char.profession);
+        setTextField(ctx, form, fs.NAME, char.name);
+        setTextField(ctx, form, fs.STR, char.str);
+        setTextField(ctx, form, fs.CON, char.con);
+        setTextField(ctx, form, fs.AGL, char.agl);
+        setTextField(ctx, form, fs.INT, char.int);
+        setTextField(ctx, form, fs.WIL, char.wil);
+        setTextField(ctx, form, fs.CHA, char.cha);
+        setTextField(ctx, form, fs.DAMAGE_BONUS_STR, char.damageBonStr);
+        setTextField(ctx, form, fs.DAMAGE_BONUS_AGL, char.damageBonAgl);
+        setTextField(ctx, form, fs.HP, char.hp);
+        setTextField(ctx, form, fs.WP, char.wp);
+        setTextField(ctx, form, fs.ABILITY, char.abilities);
+
+        for (const s of Object.keys(fs.SKILL)) {
+            setTextField(ctx, form, fs.SKILL[s], char.skills[s]);
+        }
+
+    }
+
+    function createFilename(char, ctx) {
+        const kinText = translate(char.kin, ctx.lang, char.gender);
+        const professionText = translate(char.profession, ctx.lang, char.gender);
+        const nameText = translate(char.name, ctx.lang, char.gender);
+        return `${kinText}_${professionText}_${nameText}.pdf`;
+    }
+
+    function getKin() {
+        const r = diceRoll(12);
+        if (r >= 1 && r <= 4) {
+            return KIN.Human;
+        } else if (r >= 5 && r <= 7) {
+            return KIN.Halfling;
+        } else if (r >= 8 && r <= 9) {
+            return KIN.Dwarf;
+        } else if (r === 10) {
+            return KIN.Elf;
+        } else if (r === 11) {
+            return KIN.Mallard;
+        } else if (r === 12) {
+            return KIN.Wolfkin;
+        }
+        throw Error('bad dice roll');
+    }
+
+    function getFirstName(kin) {
+        switch(kin) {
+            case KIN.Human: return randomItem(['Joruna', 'Tym', 'Halvelda', 'Garmander', 'Verolun', 'Lothar']);
+            case KIN.Halfling: return randomItem(['Snappy', 'Brine', 'Cottar', 'Bumble', 'Perrywick', 'Theoline']);
+            case KIN.Dwarf: return randomItem(['Tinderrock', 'Halwyld', 'Tymolana', 'Traut', 'Urd', 'Fermer']);
+            case KIN.Elf: return randomItem(['Arasin', 'Illyriana', 'Galvander', 'Tyrindelia', 'Erwilnor', 'Andremone']);
+            case KIN.Mallard: return randomItem(['Qwucksum', 'Splats', 'Moggee', 'Groddy', 'Blisandina', 'Hackleswell']);
+            case KIN.Wolfkin: return randomItem(['Wyld', 'Wolfshadow', 'Lunariem', 'Obdurian', 'Frostbite', 'Wuldenhall']);
+        }
+        throw Error('bad dice roll');
+    }
+
+    function getAge() {
+        const r = diceRoll(6);
+        if (r >= 1 && r <= 3) {
+            return AGE.young;
+        } else if (r >= 4 && r <= 5) {
+            return AGE.adult;
+        } else if (r === 6) {
+            return AGE.old;
+        }
+        throw Error('bad dice roll');
+    }
+
+    function getBest3of4D6(label) {
+        let rolls = [diceRoll(6), diceRoll(6), diceRoll(6), diceRoll(6)];
+        console.info(`Rolled ${rolls} for ${label}`)
+        rolls.sort().shift();
+        return rolls.reduce((acc, curr) => acc + curr, 0);
+    }
+
+    function calcMovement(kin, agl) {
+        let m = MOVEMENT[kin];
+        if (agl <= 6) {
+            return m - 4;
+        } else if (agl >= 7 && agl <= 9) {
+            return m - 2;
+        } else if (agl >= 13 && agl <= 15) {
+            return m + 2;
+        } else if (agl >= 16) {
+            return m + 4;
+        }
+    }
+
+    function calcDamageBonus(attrVal) {
+        if (attrVal >= 17) {
+            return `+D6`;
+        } else if (attrVal >= 13) {
+            return `+D4`;
+        } else {
+            return '';
+        }
+    }
+
+    function calcHitPoints(con) {
+        return con;
+    }
+
+    function calcWillpowerPoints(wil) {
+        return wil;
+    }
+
+    function getAbilities(kin) {
+        const abilities = [];
+        if (typeof KIN_ABILITY[kin] === 'string') {
+            abilities.push(KIN_ABILITY[kin]);
+        } else {
+            abilities.push(...KIN_ABILITY[kin]);
+        }
+        return abilities;
+    }
+
+    function calcSkillChance(attrVal) {
+        return calcBaseChance(attrVal);
+    }
+
+    function createRandomCharacter() {
+        const kin = getKin();
+        const age = getAge();
+        const str = Math.min(getBest3of4D6('STR') + AGE_ATTR_ADJUST[age].STR, 18);
+        const con = Math.min(getBest3of4D6('CON') + AGE_ATTR_ADJUST[age].CON, 18);
+        const agl = Math.min(getBest3of4D6('AGL') + AGE_ATTR_ADJUST[age].AGL, 18);
+        const int = Math.min(getBest3of4D6('INT') + AGE_ATTR_ADJUST[age].INT, 18);
+        const wil = Math.min(getBest3of4D6('WIL') + AGE_ATTR_ADJUST[age].WIL, 18);
+        const cha = Math.min(getBest3of4D6('CHA') + AGE_ATTR_ADJUST[age].CHA, 18);
+        return {
+            kin: kin,
+            gender: randomItem(Object.values(GENDER)),
+            name: getFirstName(kin),
+            profession: randomItem(Object.values(PROFESSION)),
+            age: age,
+            str: str,
+            con: con,
+            agl: agl,
+            int: int,
+            wil: wil,
+            cha: cha,
+            movement: calcMovement(kin, agl),
+            damageBonStr: calcDamageBonus(str),
+            damageBonAgl: calcDamageBonus(agl),
+            hp: calcHitPoints(con),
+            wp: calcWillpowerPoints(wil),
+            abilities: getAbilities(kin),
+            skills: {
+                    Acrobatics: calcSkillChance(agl),
+                    Awareness: calcSkillChance(int),
+                    Bartering: calcSkillChance(cha),
+                    BeastLore: calcSkillChance(int),
+                    Bluffing: calcSkillChance(cha),
+                    Bushcraft: calcSkillChance(int),
+                    Crafting: calcSkillChance(str),
+                    Evade: calcSkillChance(agl),
+                    Healing: calcSkillChance(int),
+                    HuntingFishing: calcSkillChance(agl),
+                    Languages: calcSkillChance(int),
+                    MythsLegends: calcSkillChance(int),
+                    Performance: calcSkillChance(cha),
+                    Persuasion: calcSkillChance(cha),
+                    Riding: calcSkillChance(agl),
+                    Seamanship: calcSkillChance(int),
+                    SleightOfHand: calcSkillChance(agl),
+                    Sneaking: calcSkillChance(agl),
+                    SpotHidden: calcSkillChance(int),
+                    Swimming: calcSkillChance(agl),
+                }
+        };
+    }
+
+    function randomItem(array) {
+        return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function diceRoll(d) {
+        return Math.floor(Math.random() * d) + 1;
+    }
+
+    function calcBaseChance(attrVal) {
+        if (attrVal <= 5) {
+            return 3;
+        } else if (attrVal <= 8) {
+            return 4;
+        } else if (attrVal <= 12) {
+            return 5;
+        } else if (attrVal <= 15) {
+            return 6;
+        } else {
+            return 7;
+        }
+    }
+
+    function translate(key, lang, gender) {
+        const text = I18N[lang][key];
+        if (text === undefined) {
+            console.warn(`Missing ${lang} translation for: ${key}`);
+            return key;
+        }
+        if (gender && typeof text !== 'string') {
+            return text[gender];
+        }
+        return text;
+    }
+</script>
