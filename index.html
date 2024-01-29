@@ -49,6 +49,10 @@
 <script>
     const { PDFDocument } = PDFLib
 
+    const TEMPLATE = {
+        'DB_DE_Charakterbogen_ausfuellbar_v0.8': 'DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf'
+    }
+
     const FIELD = {
         'DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf': {
             PLAYER: 'Gespielt von',
@@ -66,10 +70,17 @@
             CHA: 'CHA',
             DAMAGE_BONUS_STR: 'Schadensbonus STR',
             DAMAGE_BONUS_AGL: 'Schadensbonus GEW',
+            MOVEMENT: 'Bewegung',
             HP: 'TP',
             WP: 'WP',
             ABILITY: nr => `Talente & Zauber ${nr+1}`,
             INVENTORY: nr => `Inventar ${nr+1}`,
+            GOLD: 'Goldstücke',
+            SILVER: 'Silberstücke',
+            COPPER: 'Kupferstücke',
+            ENCUMBRANCE: 'Traglast',
+            ARMOR: 'Rüstung',
+            HELMET: 'Helm',
             SKILL: {
                 Acrobatics: 'Fertigkeiten 1',
                 Evade: 'Fertigkeiten 2',
@@ -92,6 +103,27 @@
                 Awareness: 'Fertigkeiten 19',
                 Bushcraft: 'Fertigkeiten 20',
             },
+            WEAPON_SKILL: {
+                Crossbows: 'KF 1',
+                Axes: 'KF 2',
+                Bows: 'KF 3',
+                Hammers: 'KF 4',
+                Knives: 'KF 5',
+                Brawling: 'KF 6',
+                Slings: 'KF 7',
+                Swords: 'KF 8',
+                Spears: 'KF 9',
+                Staves: 'KF 10',
+            },
+            SECONDARY_SKILLS: nr => `Sekundäre Fertigkeiten ${nr+1}`,
+            APPEARANCE: nr => `Erscheinungsbild ${nr+1}`,
+            MEMENTO: nr => `Memento ${nr+1}`,
+            WEAPON_SHIELD: nr => `Waffe/Schild ${nr+1}`,
+            GRIP: nr => `Griff ${nr+1}`,
+            RANGE: nr => `Reichweite ${nr+1}`,
+            DAMAGE: nr => `Schaden ${nr+1}`,
+            DURABILITY: nr => `Haltbarkeit ${nr+1}`,
+            FEATURES: nr => `Merkmale ${nr+1}`,
         }
     };
 
@@ -142,16 +174,16 @@
     }
 
     const PROFESSION = {
-        artisan: 'Artisan',
-        bard: 'Bard',
-        fighter: 'Fighter',
-        hunter: 'Hunter',
-        knight: 'Knight',
-        mage: 'Mage',
-        mariner: 'Mariner',
-        merchant: 'Merchant',
-        scholar: 'Scholar',
-        thief: 'Thief',
+        Artisan: 'Artisan',
+        Bard: 'Bard',
+        Fighter: 'Fighter',
+        Hunter: 'Hunter',
+        Knight: 'Knight',
+        Mage: 'Mage',
+        Mariner: 'Mariner',
+        Merchant: 'Merchant',
+        Scholar: 'Scholar',
+        Thief: 'Thief',
     }
 
     const AGE = {
@@ -181,6 +213,101 @@
         Wolfkin: 'Hunting Instincts'
     };
 
+    const PROFESSION_KEY_ATTR = {
+        Artisan: 'STR',
+        Bard: 'CHA',
+        Fighter: 'STR',
+        Hunter: 'AGL',
+        Knight: 'STR',
+        Mage: 'WIL',
+        Mariner: 'AGL',
+        Merchant: 'CHA',
+        Scholar: 'INT',
+        Thief: 'AGL',
+    }
+
+    const PROFESSION_HEROIC_ABILITY = {
+        Artisan: ['Master Blacksmith', 'Master Carpenter', 'Master Tanner'],
+        Bard: ['Musician'],
+        Fighter: ['Veteran'],
+        Hunter: ['Companion'],
+        Knight: ['Guardian'],
+        Mage: [],
+        Mariner: ['Sea Legs'],
+        Merchant: ['Treasure Hunter'],
+        Scholar: ['Intuition'],
+        Thief: ['Backstabbing'],
+    }
+
+    const PROFESSION_START_GEAR = {
+        Artisan: [
+            ['warhammer (small)', 'leather armor', 'black-smith’s tools', 'torch', 'flint & tinder', 'D8 food rations', 'D8 silver'],
+            ['handaxe', 'leather armor', 'carpentry tools', 'torch', 'rope (hemp)', 'flint & tinder', 'D8 food rations', 'D8 silver'],
+            ['knife', 'leather armor', 'tanner’s tools', 'lantern', 'lamp oil', 'flint & tinder', 'D8 food rations', 'D8 silver']
+        ],
+        Bard: [
+            [],
+            [],
+            []
+        ],
+        Fighter: [
+            [],
+            [],
+            []
+        ],
+        Hunter: [
+            [],
+            [],
+            []
+        ],
+        Knight: [
+            [],
+            [],
+            []
+        ],
+        Mage: [
+            [],
+            [],
+            []
+        ],
+        Mariner: [
+            [],
+            [],
+            []
+        ],
+        Merchant: [
+            [],
+            [],
+            []
+        ],
+        Scholar: [
+            [],
+            [],
+            []
+        ],
+        Thief: [
+            [],
+            [],
+            []
+        ],
+    }
+
+    const ARMOR = {
+        'leather armor': {ac: 1},
+        'studded leather armor': {ac: 2},
+        'plate armor': {ac: 6},
+    };
+
+    const HELMET = {
+        'open helmet': {}
+    };
+
+    const WEAPON = {
+        'knife': {grip: '1h'},
+        'handaxe': {grip: '1h'},
+        'broadsword': {grip: '1h'},
+        'warhammer (small)': {grip: '1h'}
+    };
 
     const I18N = {
         de: {
@@ -188,25 +315,26 @@
             '+D6': '+W6',
             Human: 'Mensch',
             Halfling: 'Halbling',
-            Dwarf: {m: 'Zwerg', f: 'Zwergin'},
-            Elf: 'Elf',
+            Dwarf: simpleGermanGender('Zwerg'),
+            Elf: {m:'Elf',f:'Elfe'},
             Mallard: 'Ente',
             Wolfkin: 'Wolfsmensch',
             male: 'männlich',
             female: 'weiblich',
-            Artisan: {m: 'Handwerker', f: 'Handwerkerin'},
+            Artisan: simpleGermanGender('Handwerker'),
             Bard: {m: 'Barde', f: 'Bardin'},
-            Fighter: {m: 'Kämpfer', f: 'Kämpferin'},
-            Hunter: {m: 'Jäger', f: 'Jägerin'},
-            Knight: {m: 'Ritter', f: 'Ritterin'},
-            Mage: {m: 'Magier', f: 'Magierin'},
+            Fighter: simpleGermanGender('Kämpfer'),
+            Hunter: simpleGermanGender('Jäger'),
+            Knight: simpleGermanGender('Ritter'),
+            Mage: simpleGermanGender('Magier'),
             Mariner: {m: 'Seemann', f: 'Seefrau'},
-            Merchant: {m: 'Händler', f: 'Händlerin'},
+            Merchant: simpleGermanGender('Händler'),
             Scholar: {m: 'Gelehrter', f: 'Gelehrte'},
-            Thief: {m: 'Dieb', f: 'Diebin'},
+            Thief: simpleGermanGender('Dieb'),
             young: 'Jung',
             adult: 'Erwachsen',
             old:   'Alt',
+            // Firstnames
             Joruna: {m: 'Jorun', f: 'Joruna'},
             Tym: {m: 'Tym', f: 'Tymia'},
             Halvelda: {m: 'Halveld', f: 'Halvelda'},
@@ -242,6 +370,26 @@
             Obdurian: {m: 'Obdurian', f: 'Obduriana'},
             Frostbite: {m: 'Frostbeule', f: 'Frostbeule'},
             Wuldenhall: {m: 'Wuldenhall', f: 'Wuldenhall'},
+            // Nicknames
+            'Stonehammer': 'Steinhammer',
+            'Woodcleaver': 'Holzspalter',
+            'Strongfist': 'Starkfaust',
+            'Barrelmaker': 'Fassbinder',
+            'Bridgebuilder': 'Brückenbauer',
+            'Ironmaster': 'Eisenmeister',
+            'Odemaker': 'Odemacher',
+            'Talespinner': 'Fabelspinner',
+            'Silvervoice': 'Silberstimme',
+            'Gildenclef': 'Gildenmeister',
+            'Honeytongue': 'Honigzunge',
+            'Rhymesmith': 'Reimeschmied',
+            'Gravemaker': 'Grabmacher',
+            'Grimjaw': 'Dünsterkinn',
+            'Windthaw': 'Windtau',
+            'Coldsteel': 'Kaltstahl',
+            'The Fearless': 'der Furchtlose',
+            'The Butcher': 'der Schlächter',
+            // Abilities
             'Adaptive': 'Anpassungsfähig',
             'Hard To Catch': 'Schwer zu fassen',
             'Unforgiving': 'Nachtragend',
@@ -249,6 +397,18 @@
             'Ill-tempered': 'Übellaunig',
             'Webbed Feet': 'Schwimmhäute',
             'Hunting Instincts': 'Jagdinstinkt',
+            // Heroic Abilities
+            'Master Blacksmith': simpleGermanGender('Meisterschmied'),
+            'Master Carpenter': simpleGermanGender('Meistertischler'),
+            'Master Tanner': simpleGermanGender('Meistergerber'),
+            'Musician': simpleGermanGender('Musiker'),
+            'Veteran': simpleGermanGender('Veteran'),
+            'Companion': {m:'Gefährte', f:'Gefährtin'},
+            'Guardian': simpleGermanGender('Beschützer'),
+            'Sea Legs': 'Sea Legs', // todo
+            'Treasure Hunter': simpleGermanGender('Schatzsucher'),
+            'Intuition': simpleGermanGender('Hüter'),
+            'Backstabbing': 'Hinterhältig'
         },
         en: {
             '+D4': '+D4',
@@ -264,14 +424,20 @@
         }
     };
 
+    function simpleGermanGender(name, suffix) {
+        return {m: name, f: `${name}${suffix ? suffix : 'in'}`};
+    }
+
     async function createCharacterSheetPdf() {
+
+        const template = TEMPLATE["DB_DE_Charakterbogen_ausfuellbar_v0.8"];
 
         const character = createRandomCharacter();
         console.info(character);
 
         const context = {
             lang: 'de',
-            sheetVersion: 'DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf'
+            template: template
         }
         const pdfBytes = await createPdf(character, context);
 
@@ -282,9 +448,117 @@
         );
     }
 
-    async function createPdf(character, context) {
+    function randomInventory(g) {
+        if (g.startsWith('D')) {
+            const i = g.indexOf(' ');
+            const d = g.substring(1, i);
+            return diceRoll(d) + ' ' + g.substring(3);
+        }
+        return g;
+    }
+
+    function getStartInventory(gear) {
+        return gear
+            .filter(g => !ARMOR[g] && !HELMET[g] && !WEAPON[g] && !g.endsWith(' silver'))
+            .map(g => randomInventory(g));
+    }
+
+    function getStartArmor(gear) {
+        return gear.filter(g => ARMOR[g]);
+    }
+
+    function getStartHelmet(gear) {
+        return gear.filter(g => HELMET[g]);
+    }
+
+    function getStartWeapons(gear) {
+        return gear.filter(g => WEAPON[g]);
+    }
+
+    function randomCoins(g) {
+        if (g.startsWith('D')) {
+            const i = g.indexOf(' ');
+            const d = g.substring(1, i);
+            return diceRoll(d);
+        }
+        throw Error('Bad coin gear: ' + g);
+    }
+
+    function getSilver(gear) {
+        return gear
+            .filter(g => g.endsWith(' silver'))
+            .map(g => randomCoins(g)) || 0;
+    }
+
+    function createRandomCharacter() {
+        const age = getAge();
+        const kin = getKin();
+        const profession = randomItem(Object.values(PROFESSION));
+        const str = Math.min(getBest3of4D6('STR') + AGE_ATTR_ADJUST[age].STR, 18);
+        const con = Math.min(getBest3of4D6('CON') + AGE_ATTR_ADJUST[age].CON, 18);
+        const agl = Math.min(getBest3of4D6('AGL') + AGE_ATTR_ADJUST[age].AGL, 18);
+        const int = Math.min(getBest3of4D6('INT') + AGE_ATTR_ADJUST[age].INT, 18);
+        const wil = Math.min(getBest3of4D6('WIL') + AGE_ATTR_ADJUST[age].WIL, 18);
+        const cha = Math.min(getBest3of4D6('CHA') + AGE_ATTR_ADJUST[age].CHA, 18);
+        const gear = randomItem(PROFESSION_START_GEAR[profession]);
+        return {
+            age: age,
+            gender: randomItem(Object.values(GENDER)),
+            kin: kin,
+            profession: profession,
+            firstname: getFirstname(kin),
+            nickname: getNickname(profession),
+            str: str,
+            con: con,
+            agl: agl,
+            int: int,
+            wil: wil,
+            cha: cha,
+            movement: calcMovement(kin, agl),
+            damageBonStr: calcDamageBonus(str),
+            damageBonAgl: calcDamageBonus(agl),
+            hp: calcHitPoints(con),
+            wp: calcWillpowerPoints(wil),
+            abilities: getAbilities(kin),
+            heroicAbilities: [getHeroicAbility(profession)],
+            skills: {
+                Acrobatics: calcSkillChance(agl),
+                Awareness: calcSkillChance(int),
+                Bartering: calcSkillChance(cha),
+                BeastLore: calcSkillChance(int),
+                Bluffing: calcSkillChance(cha),
+                Bushcraft: calcSkillChance(int),
+                Crafting: calcSkillChance(str),
+                Evade: calcSkillChance(agl),
+                Healing: calcSkillChance(int),
+                HuntingFishing: calcSkillChance(agl),
+                Languages: calcSkillChance(int),
+                MythsLegends: calcSkillChance(int),
+                Performance: calcSkillChance(cha),
+                Persuasion: calcSkillChance(cha),
+                Riding: calcSkillChance(agl),
+                Seamanship: calcSkillChance(int),
+                SleightOfHand: calcSkillChance(agl),
+                Sneaking: calcSkillChance(agl),
+                SpotHidden: calcSkillChance(int),
+                Swimming: calcSkillChance(agl),
+            },
+            encumbrance: Math.ceil(str / 2),
+            memento: getMemento(),
+            appearance: getAppearance(),
+            inventory: getStartInventory(gear),
+            armor: getStartArmor(gear),
+            helmet: getStartHelmet(gear),
+            weapons: getStartWeapons(gear),
+            gold: 0,
+            silver: getSilver(gear),
+            copper: 0
+        };
+    }
+
+    async function createPdf(char, ctx) {
         // Fetch the PDF with form fields
-        const formUrl = '/Dragonbane RCC/DB_DE_Charakterbogen_ausfuellbar_v0.8.pdf'
+        const formUrl = `./sheet-templates/${ctx.template}`;
         const formPdfBytes = await fetch(formUrl).then(res => res.arrayBuffer())
 
         // // Fetch the Mario image
@@ -307,8 +581,8 @@
 
         fillOutForm(
             form,
-            character,
-            {...context, gender: character.gender}
+            char,
+            {...ctx, gender: char.gender}
         );
 
         // Get all fields in the PDF by their names
@@ -321,13 +595,34 @@
         return pdfBytes;
     }
 
-    function setTextField(ctx, form, field, val) {
+    function joinTranslated(vals, ctx) {
+        let joined = '';
+        for (const v of vals) {
+            if (joined) {
+                joined += ' ';
+            }
+            joined += translate(v, ctx.lang, ctx.gender);
+        }
+        return joined;
+    }
+
+    function setTextField(ctx, form, field, val, ...moreVals) {
         if (typeof val === 'string' && val.length > 0) {
-            form.getTextField(field).setText(translate(val, ctx.lang, ctx.gender));
-        } else if (Array.isArray(val) && typeof field === 'function') {
-            for (let i = 0; i < val.length; i++) {
-                const v = val[i];
-                form.getTextField(field(i)).setText(translate(v, ctx.lang, ctx.gender));
+            let textField;
+            if (typeof field === 'function') {
+                textField = form.getTextField(field(0));
+            } else {
+                textField = form.getTextField(field);
+            }
+            textField.setText(joinTranslated([val, ...moreVals], ctx));
+        } else if (Array.isArray(val)) {
+            if (typeof field === 'function') {
+                for (let i = 0; i < val.length; i++) {
+                    const v = val[i];
+                    form.getTextField(field(i)).setText(translate(v, ctx.lang, ctx.gender));
+                }
+            } else {
+                form.getTextField(field).setText(joinTranslated(val, ctx));
             }
         } else if (typeof val === 'number' || val === '') {
             form.getTextField(field).setText(`${val}`);
@@ -337,11 +632,11 @@
     }
 
     function fillOutForm(form, char, ctx) {
-        const fs = FIELD[ctx.sheetVersion];
+        const fs = FIELD[ctx.template];
         setTextField(ctx, form, fs.KIN, char.kin);
         setTextField(ctx, form, fs.AGE, char.age);
         setTextField(ctx, form, fs.PROFESSION, char.profession);
-        setTextField(ctx, form, fs.NAME, char.name);
+        setTextField(ctx, form, fs.NAME, char.firstname, char.nickname);
         setTextField(ctx, form, fs.STR, char.str);
         setTextField(ctx, form, fs.CON, char.con);
         setTextField(ctx, form, fs.AGL, char.agl);
@@ -350,20 +645,29 @@
         setTextField(ctx, form, fs.CHA, char.cha);
         setTextField(ctx, form, fs.DAMAGE_BONUS_STR, char.damageBonStr);
         setTextField(ctx, form, fs.DAMAGE_BONUS_AGL, char.damageBonAgl);
+        setTextField(ctx, form, fs.MOVEMENT, char.movement);
         setTextField(ctx, form, fs.HP, char.hp);
         setTextField(ctx, form, fs.WP, char.wp);
-        setTextField(ctx, form, fs.ABILITY, char.abilities);
-
+        setTextField(ctx, form, fs.ABILITY, [...char.abilities, ...char.heroicAbilities]);
         for (const s of Object.keys(fs.SKILL)) {
             setTextField(ctx, form, fs.SKILL[s], char.skills[s]);
         }
-
+        setTextField(ctx, form, fs.APPEARANCE, char.appearance);
+        setTextField(ctx, form, fs.ENCUMBRANCE, char.encumbrance);
+        setTextField(ctx, form, fs.INVENTORY, char.inventory);
+        setTextField(ctx, form, fs.MEMENTO, char.memento);
+        setTextField(ctx, form, fs.ARMOR, char.armor);
+        setTextField(ctx, form, fs.HELMET, char.helmet);
+        setTextField(ctx, form, fs.WEAPON_SHIELD, char.weapons);
+        setTextField(ctx, form, fs.GOLD, char.gold || '');
+        setTextField(ctx, form, fs.SILVER, char.silver || '');
+        setTextField(ctx, form, fs.COPPER, char.copper || '');
     }
 
     function createFilename(char, ctx) {
         const kinText = translate(char.kin, ctx.lang, char.gender);
         const professionText = translate(char.profession, ctx.lang, char.gender);
-        const nameText = translate(char.name, ctx.lang, char.gender);
+        const nameText = translate(char.firstname, ctx.lang, char.gender);
         return `${kinText}_${professionText}_${nameText}.pdf`;
     }
 
@@ -385,7 +689,7 @@
         throw Error('bad dice roll');
     }
 
-    function getFirstName(kin) {
+    function getFirstname(kin) {
         switch(kin) {
             case KIN.Human: return randomItem(['Joruna', 'Tym', 'Halvelda', 'Garmander', 'Verolun', 'Lothar']);
             case KIN.Halfling: return randomItem(['Snappy', 'Brine', 'Cottar', 'Bumble', 'Perrywick', 'Theoline']);
@@ -393,6 +697,22 @@
             case KIN.Elf: return randomItem(['Arasin', 'Illyriana', 'Galvander', 'Tyrindelia', 'Erwilnor', 'Andremone']);
             case KIN.Mallard: return randomItem(['Qwucksum', 'Splats', 'Moggee', 'Groddy', 'Blisandina', 'Hackleswell']);
             case KIN.Wolfkin: return randomItem(['Wyld', 'Wolfshadow', 'Lunariem', 'Obdurian', 'Frostbite', 'Wuldenhall']);
+        }
+        throw Error('bad dice roll');
+    }
+
+    function getNickname(profession) {
+        switch(profession) {
+            case PROFESSION.Artisan: return randomItem(['Stonehammer', 'Woodcleaver', 'Strongfist', 'Barrelmaker', 'Bridgebuilder', 'Ironmaster']);
+            case PROFESSION.Bard: return randomItem(['Odemaker', 'Talespinner', 'Silvervoice', 'Gildenclef', 'Honeytongue', 'Rhymesmith']);
+            case PROFESSION.Fighter: return randomItem(['Gravemaker', 'Grimjaw', 'Windthaw', 'Coldsteel', 'The Fearless', 'The Butcher']);
+            case PROFESSION.Hunter: return randomItem(['Forest Fox', 'Wolfbane', 'Pathfinder', 'The Weathered', 'Bloodhunger', 'Shadowbolt']);
+            case PROFESSION.Knight: return randomItem(['Dragonheart', 'Goldlance', 'Griffinclaw', 'The Noble', 'Gleamhelm', 'Mourningcloak']);
+            case PROFESSION.Mage: return randomItem(['Rootheart', 'Crookback', 'Graycape', 'Stormhand', 'Stafflimper', 'Shadowbringer']);
+            case PROFESSION.Mariner: return randomItem(['Whitewater', 'Waverider', 'Foamborn', 'Saltsplash', 'Seadog', 'Stormfarer']);
+            case PROFESSION.Merchant: return randomItem(['Silvergrin', 'Goldtooth', 'Silktongue', 'The Lisping and Truthful', 'Lardbelly', 'Skinflint']);
+            case PROFESSION.Scholar: return randomItem(['Clearmind', 'Dustlung', 'Farsight', 'The Lettered', 'The All-Knowing', 'The Plump and Learned']);
+            case PROFESSION.Thief: return randomItem(['Halffinger', 'Blackrat', 'Redeye', 'Quickfoot', 'Doubletongue', 'Nightstabber']);
         }
         throw Error('bad dice roll');
     }
@@ -427,6 +747,7 @@
         } else if (agl >= 16) {
             return m + 4;
         }
+        return m;
     }
 
     function calcDamageBonus(attrVal) {
@@ -461,56 +782,63 @@
         return calcBaseChance(attrVal);
     }
 
-    function createRandomCharacter() {
-        const kin = getKin();
-        const age = getAge();
-        const str = Math.min(getBest3of4D6('STR') + AGE_ATTR_ADJUST[age].STR, 18);
-        const con = Math.min(getBest3of4D6('CON') + AGE_ATTR_ADJUST[age].CON, 18);
-        const agl = Math.min(getBest3of4D6('AGL') + AGE_ATTR_ADJUST[age].AGL, 18);
-        const int = Math.min(getBest3of4D6('INT') + AGE_ATTR_ADJUST[age].INT, 18);
-        const wil = Math.min(getBest3of4D6('WIL') + AGE_ATTR_ADJUST[age].WIL, 18);
-        const cha = Math.min(getBest3of4D6('CHA') + AGE_ATTR_ADJUST[age].CHA, 18);
-        return {
-            kin: kin,
-            gender: randomItem(Object.values(GENDER)),
-            name: getFirstName(kin),
-            profession: randomItem(Object.values(PROFESSION)),
-            age: age,
-            str: str,
-            con: con,
-            agl: agl,
-            int: int,
-            wil: wil,
-            cha: cha,
-            movement: calcMovement(kin, agl),
-            damageBonStr: calcDamageBonus(str),
-            damageBonAgl: calcDamageBonus(agl),
-            hp: calcHitPoints(con),
-            wp: calcWillpowerPoints(wil),
-            abilities: getAbilities(kin),
-            skills: {
-                    Acrobatics: calcSkillChance(agl),
-                    Awareness: calcSkillChance(int),
-                    Bartering: calcSkillChance(cha),
-                    BeastLore: calcSkillChance(int),
-                    Bluffing: calcSkillChance(cha),
-                    Bushcraft: calcSkillChance(int),
-                    Crafting: calcSkillChance(str),
-                    Evade: calcSkillChance(agl),
-                    Healing: calcSkillChance(int),
-                    HuntingFishing: calcSkillChance(agl),
-                    Languages: calcSkillChance(int),
-                    MythsLegends: calcSkillChance(int),
-                    Performance: calcSkillChance(cha),
-                    Persuasion: calcSkillChance(cha),
-                    Riding: calcSkillChance(agl),
-                    Seamanship: calcSkillChance(int),
-                    SleightOfHand: calcSkillChance(agl),
-                    Sneaking: calcSkillChance(agl),
-                    SpotHidden: calcSkillChance(int),
-                    Swimming: calcSkillChance(agl),
-                }
-        };
+    function getHeroicAbility(profession) {
+        return randomItem(PROFESSION_HEROIC_ABILITY[profession]);
+    }
+
+    function getMemento() {
+        const memento = randomItem([
+            'Your trusty old shoes',
+            'A simple silver medallion',
+            ['A letter from an old friend','A letter from an old relative'],
+            'A ragged old journal',
+            'A bracelet passed down in your family',
+            'A wooden figurine you got as a child',
+            'A strangely shaped stone',
+            ['A copper coin from a treasure sought by your mother','A copper coin from a treasure sought by your father'],
+            'An old pewter tankard',
+            'A horn taken as a trophy from a monster',
+            'A fang taken as a trophy from a beast',
+            'A couple of simple dice made of bone',
+            'A locket containing a lock of hair',
+            'An ornate key',
+            'A hand-drawn map you inherited',
+            'A ring with an inscription',
+            'A bone whistle',
+            ['Your mother’s ragged old hat','Your father’s ragged old hat'],
+            'A griffin feather',
+            'A beautifully carved pipe'
+        ]);
+        if (typeof memento === 'string') {
+            return memento;
+        } else {
+            return randomItem(memento);
+        }
+    }
+
+    function getAppearance() {
+        return randomItem([
+            'Ugly scar across your cheek',
+            'Strange headgear',
+            'Abnormally pale and pasty',
+            'A constant smile on your lips',
+            'Icy, penetrating gaze',
+            'A bit of extra weight around the middle',
+            'Thin and wiry',
+            'Abnormal amounts of body hair',
+            'Balding',
+            'Prominent tattoo',
+            'Foul body odor',
+            'Glorious hairstyle',
+            'Limp',
+            'Filthy',
+            'Honest blue eyes',
+            'Silver tooth',
+            'Heavily perfumed',
+            'Different-colored eyes',
+            'Hissing voice',
+            'Weathered face'
+        ]);
     }
 
     function randomItem(array) {
