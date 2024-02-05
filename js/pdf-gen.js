@@ -35,8 +35,8 @@ async function createPdf(char, ctx) {
     // characterImageField.setImage(marioImage)
 
     // Serialize the PDFDocument to bytes (a Uint8Array)
-    const pdfBytes = await pdfDoc.save()
-    return pdfBytes;
+    //const pdfBytes = await pdfDoc.save()
+    return pdfDoc.save();
 }
 
 function fillOutForm(form, char, ctx) {
@@ -45,38 +45,64 @@ function fillOutForm(form, char, ctx) {
     setTextField(ctx, form, fs.AGE, char.age);
     setTextField(ctx, form, fs.PROFESSION, char.profession);
     setTextField(ctx, form, fs.NAME, char.firstname, char.nickname);
+
+    setTextField(ctx, form, fs.APPEARANCE, char.appearance);
+
     setTextField(ctx, form, fs.STR, char.str);
     setTextField(ctx, form, fs.CON, char.con);
     setTextField(ctx, form, fs.AGL, char.agl);
     setTextField(ctx, form, fs.INT, char.int);
     setTextField(ctx, form, fs.WIL, char.wil);
     setTextField(ctx, form, fs.CHA, char.cha);
+
     setTextField(ctx, form, fs.DAMAGE_BONUS_STR, char.damageBonStr);
     setTextField(ctx, form, fs.DAMAGE_BONUS_AGL, char.damageBonAgl);
     setTextField(ctx, form, fs.MOVEMENT, char.movement);
-    setTextField(ctx, form, fs.HP, char.hp);
-    setTextField(ctx, form, fs.WP, char.wp);
+
     setTextField(ctx, form, fs.ABILITY, [...char.abilities, ...char.heroicAbilities]);
-    for (const s of Object.keys(fs.SKILL)) {
-        setTextField(ctx, form, fs.SKILL[s], char.skills[s]);
-    }
-    setTextField(ctx, form, fs.APPEARANCE, char.appearance);
-    setTextField(ctx, form, fs.ENCUMBRANCE, char.encumbrance);
-    setTextField(ctx, form, fs.INVENTORY, char.inventory);
-    setTextField(ctx, form, fs.MEMENTO, char.memento);
-    setTextField(ctx, form, fs.ARMOR, char.armor);
-    setTextField(ctx, form, fs.HELMET, char.helmet);
-    setTextField(ctx, form, fs.WEAPON_SHIELD, char.weapons);
+
     setTextField(ctx, form, fs.GOLD, char.gold || '');
     setTextField(ctx, form, fs.SILVER, char.silver || '');
     setTextField(ctx, form, fs.COPPER, char.copper || '');
+
+    for (const s of Object.keys(fs.SKILL_CHECK)) {
+        setCheckBox(ctx, form, fs.SKILL_CHECK[s], char.trainedSkills.indexOf(s) >= 0);
+    }
+    for (const s of Object.keys(fs.SKILL_VALUE)) {
+        setTextField(ctx, form, fs.SKILL_VALUE[s], char.basicSkillChances[s]);
+    }
+    for (const s of Object.keys(fs.WEAPON_SKILL_CHECK)) {
+        setCheckBox(ctx, form, fs.WEAPON_SKILL_CHECK[s], char.trainedSkills.indexOf(s) >= 0);
+    }
+    for (const s of Object.keys(fs.WEAPON_SKILL_VALUE)) {
+        setTextField(ctx, form, fs.WEAPON_SKILL_VALUE[s], char.weaponSkillChances[s]);
+    }
+
+    setTextField(ctx, form, fs.ENCUMBRANCE, char.encumbrance);
+    setTextField(ctx, form, fs.INVENTORY, calcInventoryLines(char.inventory));
+    setTextField(ctx, form, fs.MEMENTO, char.memento);
+    setTextField(ctx, form, fs.TINY_ITEMS, calcTinyItems(char.inventory));
+
+    setTextField(ctx, form, fs.ARMOR, char.armor);
+    setTextField(ctx, form, fs.HELMET, char.helmet);
+
+    setTextField(ctx, form, fs.WEAPON_SHIELD, char.weapons.map(w => WEAPON[w]?.name));
+    setTextField(ctx, form, fs.GRIP,          char.weapons.map(w => WEAPON[w]?.grip));
+    setTextField(ctx, form, fs.RANGE,         char.weapons.map(w => evaluateRange(char, WEAPON[w]?.range)));
+    setTextField(ctx, form, fs.DAMAGE,        char.weapons.map(w => '' + WEAPON[w]?.damage));
+    setTextField(ctx, form, fs.DURABILITY,    char.weapons.map(w => '' + WEAPON[w]?.durability));
+    setTextField(ctx, form, fs.FEATURES,      char.weapons.map(w => WEAPON[w]?.features.join(', ')));
+
+    setTextField(ctx, form, fs.WP, char.wp);
+    setTextField(ctx, form, fs.HP, char.hp);
 }
 
 function createFilename(char, ctx) {
-    const kinText = translate(char.kin, ctx.lang, char.gender);
-    const professionText = translate(char.profession, ctx.lang, char.gender);
-    const nameText = translate(char.firstname, ctx.lang, char.gender);
-    return `${kinText}_${professionText}_${nameText}.pdf`;
+    const kin = translate(char.kin, ctx.lang, char.gender);
+    const profession = translate(char.profession, ctx.lang, char.gender);
+    const firstname = translate(char.firstname, ctx.lang, char.gender);
+    const nickname = translate(char.nickname, ctx.lang, char.gender);
+    return `${kin}_${profession}_${firstname}_${nickname}.pdf`;
 }
 
 function joinTranslated(vals, ctx) {
@@ -113,4 +139,67 @@ function setTextField(ctx, form, field, val, ...moreVals) {
     } else {
         throw Error('Bad value: ' + val);
     }
+}
+
+function setCheckBox(ctx, form, field, val) {
+    if (typeof val === 'boolean') {
+        let checkBox;
+        if (typeof field === 'function') {
+            checkBox = form.getCheckBox(field(0));
+        } else {
+            checkBox = form.getCheckBox(field);
+        }
+        setCheckBoxValue(checkBox, val);
+    } else if (Array.isArray(val)) {
+        if (typeof field === 'function') {
+            for (let i = 0; i < val.length; i++) {
+                const v = val[i];
+                setCheckBoxValue(form.getCheckBox(field(i)), val);
+            }
+        } else {
+            setCheckBoxValue(form.getCheckBox(field), val);
+        }
+    } else {
+        throw Error('Bad value: ' + val);
+    }
+}
+
+function setCheckBoxValue(checkBox, b) {
+    if (b) {
+        checkBox.check();
+    } else {
+        checkBox.uncheck();
+    }
+}
+
+function evaluateRange(char, range) {
+    if (typeof range == 'number') {
+        return '' + range;
+    } else {
+        return '' + (char[range] || '');
+    }
+}
+
+function calcInventoryLines(inventory) {
+    const lines = [];
+    for (let i = 0; i < inventory.length; i++) {
+        const item = inventory[i];
+        const itemStats = ITEM[item] || {};
+        if (itemStats.weight === 0) {
+            continue;
+        }
+        const weight = itemStats.weight || 1;
+        for (let j = 0; j < weight; j++) {
+            if (j === 0) {
+                lines.push(item);
+            } else {
+                lines.push('   ---');
+            }
+        }
+    }
+    return lines.slice(0, 10);
+}
+
+function calcTinyItems(inventory) {
+    return inventory.filter(i => ITEM[i]?.weight === 0).join(', ');
 }

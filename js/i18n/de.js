@@ -72,7 +72,7 @@ const I18N_de = {
     'Barrelmaker': 'Fassbinder',
     'Bridgebuilder': 'Brückenbauer',
     'Ironmaster': 'Eisenmeister',
-    'Odemaker': 'Odemacher',
+    'Odemaker': simpleGermanGender('Odendichter'),
     'Talespinner': 'Fabelspinner',
     'Silvervoice': 'Silberstimme',
     'Gildenclef': 'Gildenmeister',
@@ -103,7 +103,10 @@ const I18N_de = {
     'Sea Legs': 'Seebeine',
     'Treasure Hunter': simpleGermanGender('Schatzsucher'),
     'Intuition': simpleGermanGender('Hüter'),
-    'Backstabbing': 'Hinterhältig'
+    'Backstabbing': 'Hinterhältig',
+    // weapon stats
+    '1h': '1H',
+    '2h': '2H'
 };
 
 function simpleGermanGender(name, suffix) {

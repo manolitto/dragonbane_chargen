@@ -1,71 +1,222 @@
 function createRandomCharacter() {
-    const age = getAge();
-    const kin = getKin();
-    const profession = randomItem(Object.values(PROFESSION));
-    const str = Math.min(getBest3of4D6('STR') + AGE_ATTR_ADJUST[age].STR, 18);
-    const con = Math.min(getBest3of4D6('CON') + AGE_ATTR_ADJUST[age].CON, 18);
-    const agl = Math.min(getBest3of4D6('AGL') + AGE_ATTR_ADJUST[age].AGL, 18);
-    const int = Math.min(getBest3of4D6('INT') + AGE_ATTR_ADJUST[age].INT, 18);
-    const wil = Math.min(getBest3of4D6('WIL') + AGE_ATTR_ADJUST[age].WIL, 18);
-    const cha = Math.min(getBest3of4D6('CHA') + AGE_ATTR_ADJUST[age].CHA, 18);
-    const gear = randomItem(PROFESSION_START_GEAR[profession]);
-    return {
-        age: age,
-        gender: randomItem(Object.values(GENDER)),
-        kin: kin,
-        profession: profession,
-        firstname: getFirstname(kin),
-        nickname: getNickname(profession),
-        str: str,
-        con: con,
-        agl: agl,
-        int: int,
-        wil: wil,
-        cha: cha,
-        movement: calcMovement(kin, agl),
-        damageBonStr: calcDamageBonus(str),
-        damageBonAgl: calcDamageBonus(agl),
-        hp: calcHitPoints(con),
-        wp: calcWillpowerPoints(wil),
-        abilities: getAbilities(kin),
-        heroicAbilities: [getHeroicAbility(profession)],
-        skills: {
-            Acrobatics: calcSkillChance(agl),
-            Awareness: calcSkillChance(int),
-            Bartering: calcSkillChance(cha),
-            BeastLore: calcSkillChance(int),
-            Bluffing: calcSkillChance(cha),
-            Bushcraft: calcSkillChance(int),
-            Crafting: calcSkillChance(str),
-            Evade: calcSkillChance(agl),
-            Healing: calcSkillChance(int),
-            HuntingFishing: calcSkillChance(agl),
-            Languages: calcSkillChance(int),
-            MythsLegends: calcSkillChance(int),
-            Performance: calcSkillChance(cha),
-            Persuasion: calcSkillChance(cha),
-            Riding: calcSkillChance(agl),
-            Seamanship: calcSkillChance(int),
-            SleightOfHand: calcSkillChance(agl),
-            Sneaking: calcSkillChance(agl),
-            SpotHidden: calcSkillChance(int),
-            Swimming: calcSkillChance(agl),
+
+    const char = {
+        // simple props
+        gender: undefined,
+        memento: undefined,
+        appearance: undefined,
+
+        // props with dependencies
+
+        _age: undefined,
+        get age() {return this._age},
+        set age(v) {
+            this._age = v;
+            this.trainedSkills = getRandomTrainedSkills(this.profession, this.age);
         },
-        encumbrance: Math.ceil(str / 2),
-        memento: getMemento(),
-        appearance: getAppearance(),
-        inventory: getStartInventory(gear),
-        armor: getStartArmor(gear),
-        helmet: getStartHelmet(gear),
-        weapons: getStartWeapons(gear),
-        gold: 0,
-        silver: getSilver(gear),
-        copper: 0
+
+        _kin: undefined,
+        get kin() {return this._kin},
+        set kin(v) {
+            this._kin = v;
+            this.firstname = getRandomFirstname(this.kin);
+            this.abilities = getInnateAbilities(this.kin);
+            this.movement = calcMovement(this.kin, this.agl);
+        },
+
+        _profession: undefined,
+        get profession() {return this._profession},
+        set profession(v) {
+            this._profession = v;
+            this.nickname = getRandomNickname(this.profession);
+            this.heroicAbilities = [getHeroicAbility(this.profession)];
+            const gear = getRandomGear(this.profession);
+            this.inventory = getInventory(gear);
+            this.armor = getStartArmor(gear);
+            this.helmet = getStartHelmet(gear);
+            this.weapons = getStartWeapons(gear);
+            this.silver = getSilver(gear);
+            this.trainedSkills = getRandomTrainedSkills(this.profession, this.age);
+        },
+
+        _str: undefined,
+        get str() {return this._str},
+        set str(v) {
+            this._str = v;
+            this.damageBonStr = calcDamageBonus(this.str);
+            this.encumbrance = calcEncumbrance(this.str);
+            this.calcSkillChances();
+        },
+        
+        _con: undefined,
+        get con() {return this._con},
+        set con(v) {
+            this._con = v;
+            this.hp = calcHitPoints(this.con);
+            this.calcSkillChances();
+        },
+
+        _agl: undefined,
+        get agl() {return this._agl},
+        set agl(v) {
+            this._agl = v;
+            this.damageBonAgl = calcDamageBonus(this.agl);
+            this.movement = calcMovement(this.kin, this.agl);
+            this.calcSkillChances();
+        },
+
+        _int: undefined,
+        get int() {return this._int},
+        set int(v) {
+            this._int = v;
+            this.calcSkillChances();
+        },
+
+        _wil: undefined,
+        get wil() {return this._wil},
+        set wil(v) {
+            this._wil = v;
+            this.wp = calcWillpowerPoints(this.wil);
+            this.calcSkillChances();
+        },
+
+        _cha: undefined,
+        get cha() {return this._cha},
+        set cha(v) {
+            this._cha = v;
+            this.calcSkillChances();
+        },
+
+        // dependent props
+        firstname: undefined,
+        nickname: undefined,
+        damageBonStr: undefined,
+        damageBonAgl: undefined,
+        hp: undefined,
+        wp: undefined,
+        movement: undefined,
+        abilities: [],
+        heroicAbilities: [],
+        inventory: [],
+        armor: undefined,
+        helmet: undefined,
+        weapons: [],
+        gold: undefined,
+        silver: undefined,
+        copper: undefined,
+
+        _trainedSkills: [],
+        get trainedSkills() {return this._trainedSkills},
+        set trainedSkills(v) {
+            this._trainedSkills = v;
+            this.calcSkillChances();
+        },
+
+        basicSkillChances: undefined,
+        weaponSkillChances: undefined,
+        
+        // helpers
+        calcSkillChances: function() {
+            this.basicSkillChances = {
+                'Acrobatics': calcBasicSkillChance(this, 'Acrobatics'),
+                'Awareness': calcBasicSkillChance(this, 'Awareness'),
+                'Bartering': calcBasicSkillChance(this, 'Bartering'),
+                'Beast Lore': calcBasicSkillChance(this, 'Beast Lore'),
+                'Bluffing': calcBasicSkillChance(this, 'Bluffing'),
+                'Bushcraft': calcBasicSkillChance(this, 'Bushcraft'),
+                'Crafting': calcBasicSkillChance(this, 'Crafting'),
+                'Evade': calcBasicSkillChance(this, 'Evade'),
+                'Healing': calcBasicSkillChance(this, 'Healing'),
+                'Hunting & Fishing': calcBasicSkillChance(this, 'Hunting & Fishing'),
+                'Languages': calcBasicSkillChance(this, 'Languages'),
+                'Myths & Legends': calcBasicSkillChance(this, 'Myths & Legends'),
+                'Performance': calcBasicSkillChance(this, 'Performance'),
+                'Persuasion': calcBasicSkillChance(this, 'Persuasion'),
+                'Riding': calcBasicSkillChance(this, 'Riding'),
+                'Seamanship': calcBasicSkillChance(this, 'Seamanship'),
+                'Sleight of Hand': calcBasicSkillChance(this, 'Sleight of Hand'),
+                'Sneaking': calcBasicSkillChance(this, 'Sneaking'),
+                'Spot Hidden': calcBasicSkillChance(this, 'Spot Hidden'),
+                'Swimming': calcBasicSkillChance(this, 'Swimming'),
+            };
+            this.weaponSkillChances = {
+                Crossbows:  calcWeaponSkillChance(this, 'Crossbows'),
+                Axes:       calcWeaponSkillChance(this, 'Axes'),
+                Bows:       calcWeaponSkillChance(this, 'Bows'),
+                Hammers:    calcWeaponSkillChance(this, 'Hammers'),
+                Knives:     calcWeaponSkillChance(this, 'Knives'),
+                Brawling:   calcWeaponSkillChance(this, 'Brawling'),
+                Slings:     calcWeaponSkillChance(this, 'Slings'),
+                Swords:     calcWeaponSkillChance(this, 'Swords'),
+                Spears:     calcWeaponSkillChance(this, 'Spears'),
+                Staves:     calcWeaponSkillChance(this, 'Staves'),
+            };
+        }
     };
+
+    char.gender = getRandomGender();
+    char.age = getRandomAge();
+    char.kin = getRandomKin();
+    char.profession = "Artisan"; //todo getRandomProfession();
+    char.str = Math.min(getBest3of4D6('STR') + AGE_ATTR_ADJUST[char.age].STR, 18);
+    char.con = Math.min(getBest3of4D6('CON') + AGE_ATTR_ADJUST[char.age].CON, 18);
+    char.agl = Math.min(getBest3of4D6('AGL') + AGE_ATTR_ADJUST[char.age].AGL, 18);
+    char.int = Math.min(getBest3of4D6('INT') + AGE_ATTR_ADJUST[char.age].INT, 18);
+    char.wil = Math.min(getBest3of4D6('WIL') + AGE_ATTR_ADJUST[char.age].WIL, 18);
+    char.cha = Math.min(getBest3of4D6('CHA') + AGE_ATTR_ADJUST[char.age].CHA, 18);
+    char.memento = getRandomMemento();
+    char.appearance = getRandomAppearance();
+
+    return char;
 }
 
+function getRandomGear(profession) {
+    return randomItem(PROFESSION_START_GEAR[profession]);
+}
 
-function randomInventory(g) {
+function calcEncumbrance(str) {
+    return Math.ceil(str / 2);
+}
+
+function getRandomGender() {
+    return randomItem(Object.values(GENDER));
+}
+
+function getRandomKin() {
+    const r = diceRoll(12);
+    if (r >= 1 && r <= 4) {
+        return KIN.Human;
+    } else if (r >= 5 && r <= 7) {
+        return KIN.Halfling;
+    } else if (r >= 8 && r <= 9) {
+        return KIN.Dwarf;
+    } else if (r === 10) {
+        return KIN.Elf;
+    } else if (r === 11) {
+        return KIN.Mallard;
+    } else if (r === 12) {
+        return KIN.Wolfkin;
+    }
+    throw Error('bad dice roll');
+}
+
+function getRandomProfession() {
+    return randomItem(Object.values(PROFESSION));
+}
+
+function getRandomAge() {
+    const r = diceRoll(6);
+    if (r >= 1 && r <= 3) {
+        return AGE.young;
+    } else if (r >= 4 && r <= 5) {
+        return AGE.adult;
+    } else if (r === 6) {
+        return AGE.old;
+    }
+    throw Error('bad dice roll');
+}
+
+function randomizeItemCount(g) {
     if (g.startsWith('D')) {
         const i = g.indexOf(' ');
         const d = g.substring(1, i);
@@ -74,10 +225,10 @@ function randomInventory(g) {
     return g;
 }
 
-function getStartInventory(gear) {
+function getInventory(gear) {
     return gear
         .filter(g => !ARMOR[g] && !HELMET[g] && !WEAPON[g] && !g.endsWith(' silver'))
-        .map(g => randomInventory(g));
+        .map(g => randomizeItemCount(g));
 }
 
 function getStartArmor(gear) {
@@ -108,26 +259,7 @@ function getSilver(gear) {
 }
 
 
-
-function getKin() {
-    const r = diceRoll(12);
-    if (r >= 1 && r <= 4) {
-        return KIN.Human;
-    } else if (r >= 5 && r <= 7) {
-        return KIN.Halfling;
-    } else if (r >= 8 && r <= 9) {
-        return KIN.Dwarf;
-    } else if (r === 10) {
-        return KIN.Elf;
-    } else if (r === 11) {
-        return KIN.Mallard;
-    } else if (r === 12) {
-        return KIN.Wolfkin;
-    }
-    throw Error('bad dice roll');
-}
-
-function getFirstname(kin) {
+function getRandomFirstname(kin) {
     switch(kin) {
         case KIN.Human: return randomItem(['Joruna', 'Tym', 'Halvelda', 'Garmander', 'Verolun', 'Lothar']);
         case KIN.Halfling: return randomItem(['Snappy', 'Brine', 'Cottar', 'Bumble', 'Perrywick', 'Theoline']);
@@ -139,7 +271,7 @@ function getFirstname(kin) {
     throw Error('bad dice roll');
 }
 
-function getNickname(profession) {
+function getRandomNickname(profession) {
     switch(profession) {
         case PROFESSION.Artisan: return randomItem(['Stonehammer', 'Woodcleaver', 'Strongfist', 'Barrelmaker', 'Bridgebuilder', 'Ironmaster']);
         case PROFESSION.Bard: return randomItem(['Odemaker', 'Talespinner', 'Silvervoice', 'Gildenclef', 'Honeytongue', 'Rhymesmith']);
@@ -155,27 +287,11 @@ function getNickname(profession) {
     throw Error('bad dice roll');
 }
 
-function getAge() {
-    const r = diceRoll(6);
-    if (r >= 1 && r <= 3) {
-        return AGE.young;
-    } else if (r >= 4 && r <= 5) {
-        return AGE.adult;
-    } else if (r === 6) {
-        return AGE.old;
-    }
-    throw Error('bad dice roll');
-}
-
-function getBest3of4D6(label) {
-    let rolls = [diceRoll(6), diceRoll(6), diceRoll(6), diceRoll(6)];
-    console.info(`Rolled ${rolls} for ${label}`)
-    rolls.sort().shift();
-    return rolls.reduce((acc, curr) => acc + curr, 0);
-}
-
 function calcMovement(kin, agl) {
-    let m = MOVEMENT[kin];
+    if (kin === undefined || agl === undefined) {
+        return undefined;
+    }
+    let m = KIN_MOVEMENT_TABLE[kin];
     if (agl <= 6) {
         return m - 4;
     } else if (agl >= 7 && agl <= 9) {
@@ -206,47 +322,34 @@ function calcWillpowerPoints(wil) {
     return wil;
 }
 
-function getAbilities(kin) {
+function getInnateAbilities(kin) {
     const abilities = [];
-    if (typeof KIN_ABILITY[kin] === 'string') {
-        abilities.push(KIN_ABILITY[kin]);
+    if (typeof KIN_INNATE_ABILITY[kin] === 'string') {
+        abilities.push(KIN_INNATE_ABILITY[kin]);
     } else {
-        abilities.push(...KIN_ABILITY[kin]);
+        abilities.push(...KIN_INNATE_ABILITY[kin]);
     }
     return abilities;
 }
 
-function calcSkillChance(attrVal) {
-    return calcBaseChance(attrVal);
+function calcBasicSkillChance(char, skill) {
+    const attr = SKILL_ATTR[skill];
+    const attrValue = char[attr];
+    return calcSkillChance(attrValue, char.trainedSkills.includes(skill));
+}
+
+function calcWeaponSkillChance(char, skill) {
+    const attr = SKILL_ATTR[skill];
+    const attrValue = char[attr];
+    return calcSkillChance(attrValue, char.trainedSkills.includes(skill));
 }
 
 function getHeroicAbility(profession) {
     return randomItem(PROFESSION_HEROIC_ABILITY[profession]);
 }
 
-function getMemento() {
-    const memento = randomItem([
-        'Your trusty old shoes',
-        'A simple silver medallion',
-        ['A letter from an old friend','A letter from an old relative'],
-        'A ragged old journal',
-        'A bracelet passed down in your family',
-        'A wooden figurine you got as a child',
-        'A strangely shaped stone',
-        ['A copper coin from a treasure sought by your mother','A copper coin from a treasure sought by your father'],
-        'An old pewter tankard',
-        'A horn taken as a trophy from a monster',
-        'A fang taken as a trophy from a beast',
-        'A couple of simple dice made of bone',
-        'A locket containing a lock of hair',
-        'An ornate key',
-        'A hand-drawn map you inherited',
-        'A ring with an inscription',
-        'A bone whistle',
-        ['Your mother’s ragged old hat','Your father’s ragged old hat'],
-        'A griffin feather',
-        'A beautifully carved pipe'
-    ]);
+function getRandomMemento() {
+    const memento = randomItem(RANDOM_MEMENTO_TABLE);
     if (typeof memento === 'string') {
         return memento;
     } else {
@@ -254,29 +357,8 @@ function getMemento() {
     }
 }
 
-function getAppearance() {
-    return randomItem([
-        'Ugly scar across your cheek',
-        'Strange headgear',
-        'Abnormally pale and pasty',
-        'A constant smile on your lips',
-        'Icy, penetrating gaze',
-        'A bit of extra weight around the middle',
-        'Thin and wiry',
-        'Abnormal amounts of body hair',
-        'Balding',
-        'Prominent tattoo',
-        'Foul body odor',
-        'Glorious hairstyle',
-        'Limp',
-        'Filthy',
-        'Honest blue eyes',
-        'Silver tooth',
-        'Heavily perfumed',
-        'Different-colored eyes',
-        'Hissing voice',
-        'Weathered face'
-    ]);
+function getRandomAppearance() {
+    return randomItem(RANDOM_APPEARANCE_TABLE);
 }
 
 
@@ -291,5 +373,31 @@ function calcBaseChance(attrVal) {
         return 6;
     } else {
         return 7;
+    }
+}
+
+function calcSkillChance(attrVal, trained) {
+    if (trained) {
+        return calcBaseChance(attrVal) * 2;
+    } else {
+        return calcBaseChance(attrVal);
+    }
+}
+
+function getRandomTrainedSkills(profession, age) {
+    if (profession && age) {
+        const trainedSkills = [];
+        const numTrainedProf = AGE_TRAINED_SKILL[age]?.prof
+        const numTrainedFree = AGE_TRAINED_SKILL[age]?.free
+        trainedSkills.push(...randomNumOutOf(numTrainedProf, PROFESSION_SKILLS[profession]));
+        while (trainedSkills.length < numTrainedProf + numTrainedFree) {
+            const skill = randomItem(Object.keys(SKILL_ATTR));
+            if (!trainedSkills.includes(skill)) {
+                trainedSkills.push(skill);
+            }
+        }
+        return trainedSkills;
+    } else {
+        return [];
     }
 }

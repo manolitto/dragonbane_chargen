@@ -11,5 +11,8 @@ const I18N_en = {
     'Wolfkin': 'Wolfkin',
     // gender
     'male': 'male',
-    'female': 'female'
+    'female': 'female',
+    // weapon stats
+    '1h': '1H',
+    '2h': '2H'
 };

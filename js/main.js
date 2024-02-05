@@ -3,6 +3,10 @@ async function createCharacterSheetPdf() {
     const template = TEMPLATE["DB_DE_Charakterbogen_ausfuellbar_v0.8"];
 
     const character = createRandomCharacter();
+
+    console.info(character);
+
+    character.profession = PROFESSION.Artisan;
     console.info(character);
 
     const context = {
