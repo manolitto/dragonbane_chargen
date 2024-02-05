@@ -151,7 +151,7 @@ function createRandomCharacter() {
                 Spears:     calcWeaponSkillChance(this, 'Spears'),
                 Staves:     calcWeaponSkillChance(this, 'Staves'),
             };
-        }
+        },
     };
 
     char.gender = getRandomGender();

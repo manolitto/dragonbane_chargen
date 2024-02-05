@@ -21,3 +21,4 @@ async function createCharacterSheetPdf() {
         "application/pdf"
     );
 }
+

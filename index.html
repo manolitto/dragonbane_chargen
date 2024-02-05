@@ -51,9 +51,86 @@
 </head>
 
 <body>
+
+
 <p>Klicke auf den Button um einen zufälligen Dragonbane Spielercharakter zu erschaffen:</p>
-<button onclick="createCharacterSheetPdf()">Mein Dragonbane-Charakter</button>
-<p class="small">(Das fertige PDF wird automatisch heruntergeladen)</p>
+<button onclick="createNew()">Neuer Dragonbane-Charakter</button>
+
+<form id="input-form">
+    <div>
+        <label for="character-name">Name</label> <input id="character-name" type="text" name="characterName">
+    </div>
+    <div>
+        <label for="str">STR</label> <input id="str" type="text" name="str" onchange="refreshCharacter('str')">
+        <label for="con">KON</label> <input id="con" type="text" name="con" onchange="refreshCharacter('con')">
+        <label for="agl">GEW</label> <input id="agl" type="text" name="agl" onchange="refreshCharacter('agl')">
+    </div>
+    <div>
+        <label for="damageBonStr">Schadensbonus (STR)</label> <input id="damageBonStr" type="text" name="damageBonStr" readonly>
+        <label for="damageBonAgl">Schadensbonus (GEW)</label> <input id="damageBonAgl" type="text" name="damageBonAgl" readonly>
+    </div>
+    <div>
+        <label for="hp">Trefferpunkte</label> <input id="hp" type="text" name="hp" readonly>
+        <label for="wp">Willenskraftpunkte</label> <input id="wp" type="text" name="wp" readonly>
+    </div>
+</form>
+
+<button onclick="downloadPdf()">Download</button>
+
 </body>
+
+<script>
+
+    function fillForm() {
+
+        const ctx = {
+            lang: 'de',
+            gender: character.gender
+        }
+
+        document.querySelector('#character-name').value = joinTranslated([character.firstname, character.nickname], ctx);
+        document.querySelector('#str').value = character.str;
+        document.querySelector('#con').value = character.con;
+        document.querySelector('#agl').value = character.agl;
+        document.querySelector('#damageBonStr').value = character.damageBonStr;
+        document.querySelector('#damageBonAgl').value = character.damageBonAgl;
+        document.querySelector('#hp').value = character.hp;
+        document.querySelector('#wp').value = character.wp;
+    }
+
+    function refreshCharacter(field) {
+        character[field] = document.querySelector('#' + field).value;
+        fillForm();
+    }
+
+    function createNew() {
+        character = createRandomCharacter();
+        console.log(character);
+        fillForm();
+    }
+
+    async function downloadPdf() {
+
+        const template = TEMPLATE["DB_DE_Charakterbogen_ausfuellbar_v0.8"];
+
+        const context = {
+            lang: 'de',
+            template: template
+        }
+        const pdfBytes = await createPdf(character, context);
+
+        download(
+            pdfBytes,
+            createFilename(character, context),
+            "application/pdf"
+        );
+    }
+
+    let character;
+    document.addEventListener("DOMContentLoaded", function() {
+        createNew();
+    });
+
+</script>
 
 </html>
