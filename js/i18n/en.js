@@ -1,7 +1,6 @@
 const I18N_en = {
     // dice bonus
-    '+D4': '+D4',
-    '+D6': '+D6',
+    'DICE_CHARACTER': 'D',
     // kin
     'Human': 'Human',
     'Halfling': 'Halfling',

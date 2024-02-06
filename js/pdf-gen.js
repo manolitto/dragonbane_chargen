@@ -2,7 +2,11 @@ const { PDFDocument } = PDFLib
 
 async function createPdf(char, ctx) {
     // Fetch the PDF with form fields
-    const formUrl = `./sheet-templates/${ctx.template}`;
+    const pdfFileName = TEMPLATE_PDF[ctx.template];
+    if (!pdfFileName) {
+        throw Error('PDF file not found: ' + pdfFileName);
+    }
+    const formUrl = `./sheet-templates/${pdfFileName}`;
     const formPdfBytes = await fetch(formUrl).then(res => res.arrayBuffer())
 
     // // Fetch the Mario image
@@ -83,7 +87,9 @@ function fillOutForm(form, char, ctx) {
     setTextField(ctx, form, fs.MEMENTO, char.memento);
     setTextField(ctx, form, fs.TINY_ITEMS, calcTinyItems(char.inventory));
 
+    setTextField(ctx, form, fs.ARMOR_RATING, ARMOR[char.armor]?.ac);
     setTextField(ctx, form, fs.ARMOR, char.armor);
+    setTextField(ctx, form, fs.HELMET_RATING, HELMET[char.helmet]?.ac);
     setTextField(ctx, form, fs.HELMET, char.helmet);
 
     setTextField(ctx, form, fs.WEAPON_SHIELD, char.weapons.map(w => WEAPON[w]?.name));
@@ -97,11 +103,12 @@ function fillOutForm(form, char, ctx) {
     setTextField(ctx, form, fs.HP, char.hp);
 }
 
-function createFilename(char, ctx) {
-    const kin = translate(char.kin, ctx.lang, char.gender);
-    const profession = translate(char.profession, ctx.lang, char.gender);
-    const firstname = translate(char.firstname, ctx.lang, char.gender);
-    const nickname = translate(char.nickname, ctx.lang, char.gender);
+function createFilename(char, context) {
+    const ctx = {...context, gender: char.gender};
+    const kin = translate(char.kin, ctx);
+    const profession = translate(char.profession, ctx);
+    const firstname = translate(char.firstname, ctx);
+    const nickname = translate(char.nickname, ctx);
     return `${kin}_${profession}_${firstname}_${nickname}.pdf`;
 }
 
@@ -111,13 +118,16 @@ function joinTranslated(vals, ctx) {
         if (joined) {
             joined += ' ';
         }
-        joined += translate(v, ctx.lang, ctx.gender);
+        joined += translate(v, ctx);
     }
     return joined;
 }
 
 function setTextField(ctx, form, field, val, ...moreVals) {
-    if (typeof val === 'string' && val.length > 0) {
+    if (typeof val === 'undefined') {
+        // noinspection UnnecessaryReturnStatementJS
+        return; // ignore
+    } else if (typeof val === 'string' && val.length > 0) {
         let textField;
         if (typeof field === 'function') {
             textField = form.getTextField(field(0));
@@ -129,7 +139,7 @@ function setTextField(ctx, form, field, val, ...moreVals) {
         if (typeof field === 'function') {
             for (let i = 0; i < val.length; i++) {
                 const v = val[i];
-                form.getTextField(field(i)).setText(translate(v, ctx.lang, ctx.gender));
+                form.getTextField(field(i)).setText(translate(v, ctx));
             }
         } else {
             form.getTextField(field).setText(joinTranslated(val, ctx));
@@ -154,7 +164,7 @@ function setCheckBox(ctx, form, field, val) {
         if (typeof field === 'function') {
             for (let i = 0; i < val.length; i++) {
                 const v = val[i];
-                setCheckBoxValue(form.getCheckBox(field(i)), val);
+                setCheckBoxValue(form.getCheckBox(field(i)), v);
             }
         } else {
             setCheckBoxValue(form.getCheckBox(field), val);

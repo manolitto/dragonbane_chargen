@@ -53,12 +53,13 @@
 <body>
 
 
-<p>Klicke auf den Button um einen zufälligen Dragonbane Spielercharakter zu erschaffen:</p>
-<button onclick="createNew()">Neuer Dragonbane-Charakter</button>
 
 <form id="input-form">
     <div>
         <label for="character-name">Name</label> <input id="character-name" type="text" name="characterName">
+        <label for="kin">Volk</label> <input id="kin" type="text" name="kin" readonly>
+        <label for="age">Alter</label> <input id="age" type="text" name="age" readonly>
+        <label for="profession">Beruf</label> <input id="profession" type="text" name="profession" readonly>
     </div>
     <div>
         <label for="str">STR</label> <input id="str" type="text" name="str" onchange="refreshCharacter('str')">
@@ -73,9 +74,15 @@
         <label for="hp">Trefferpunkte</label> <input id="hp" type="text" name="hp" readonly>
         <label for="wp">Willenskraftpunkte</label> <input id="wp" type="text" name="wp" readonly>
     </div>
+
 </form>
 
-<button onclick="downloadPdf()">Download</button>
+<div>
+    <button onclick="createNew()">Neu würfeln</button>
+    <button onclick="downloadPdf()">Download</button>
+</div>
+
+
 
 </body>
 
@@ -89,6 +96,9 @@
         }
 
         document.querySelector('#character-name').value = joinTranslated([character.firstname, character.nickname], ctx);
+        document.querySelector('#kin').value = translate(character.kin, ctx);
+        document.querySelector('#age').value = translate(character.age, ctx);
+        document.querySelector('#profession').value = translate(character.profession, ctx);
         document.querySelector('#str').value = character.str;
         document.querySelector('#con').value = character.con;
         document.querySelector('#agl').value = character.agl;
@@ -111,11 +121,9 @@
 
     async function downloadPdf() {
 
-        const template = TEMPLATE["DB_DE_Charakterbogen_ausfuellbar_v0.8"];
-
         const context = {
             lang: 'de',
-            template: template
+            template: 'DB_DE_Charakterbogen_ausfuellbar_sw_v0.9'
         }
         const pdfBytes = await createPdf(character, context);
 
